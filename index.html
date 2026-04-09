@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Candela">
+<title>Candela — Tu asistente de agenda</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; min-height: 100vh; }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: #fff; }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+  .config-wrap { flex: 1; padding: 40px 24px 32px; display: flex; flex-direction: column; overflow-y: auto; }
+  .config-logo { text-align: center; margin-bottom: 28px; }
+  .big-avatar { width: 80px; height: 80px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 16px; }
+  .config-logo h1 { font-size: 24px; font-weight: 600; color: #1a1a1a; }
+  .config-logo p { font-size: 14px; color: #666; margin-top: 6px; line-height: 1.5; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .field input { width: 100%; border: 1.5px solid #e5e5e5; border-radius: 12px; padding: 13px 16px; font-size: 15px; background: #fafafa; color: #1a1a1a; outline: none; transition: border-color 0.2s; }
+  .field input:focus { border-color: #7c3aed; background: #fff; }
+  .field .hint { font-size: 11px; color: #aaa; margin-top: 6px; }
+  .btn-primary { width: 100%; padding: 15px; background: #7c3aed; color: #fff; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .btn-primary:active { background: #6d28d9; }
+  .btn-primary:disabled { opacity: 0.5; }
+  .error-msg { color: #dc2626; font-size: 13px; margin-top: 10px; text-align: center; min-height: 18px; }
+  .saved-notice { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #16a34a; margin-bottom: 16px; text-align: center; display: none; }
+  .header { padding: 14px 18px 10px; border-bottom: 1px solid #f0f0f0; background: #fff; position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .header h1 { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+  .status { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #16a34a; margin-top: 1px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+  .header-actions { display: flex; gap: 6px; align-items: center; }
+  .btn-icon { background: none; border: none; font-size: 13px; color: #aaa; cursor: pointer; padding: 4px 8px; }
+  .btn-sound { width: 30px; height: 30px; border-radius: 50%; background: #f5f3ff; border: 1px solid #ddd6fe; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+  .btn-sound.muted { opacity: 0.4; }
+  .quick-actions { padding: 8px 14px; display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid #f0f0f0; }
+  .quick-actions::-webkit-scrollbar { display: none; }
+  .chip { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 20px; padding: 6px 13px; font-size: 12px; color: #7c3aed; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .chip:active { background: #ede9fe; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 110px; }
+  .msg { max-width: 84%; padding: 11px 15px; border-radius: 18px; font-size: 15px; line-height: 1.55; word-break: break-word; }
+  .msg.candela { background: #f5f3ff; color: #1a1a1a; border-radius: 18px 18px 18px 4px; align-self: flex-start; }
+  .msg.user { background: #7c3aed; color: #fff; border-radius: 18px 18px 4px 18px; align-self: flex-end; }
+  .msg.system { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; align-self: center; font-size: 12px; color: #92400e; padding: 6px 12px; max-width: 92%; text-align: center; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 15px; background: #f5f3ff; border-radius: 18px 18px 18px 4px; align-self: flex-start; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)} }
+  .speaking-indicator { display: none; align-items: center; gap: 6px; padding: 5px 13px; background: #ede9fe; border-radius: 20px; align-self: flex-start; font-size: 12px; color: #7c3aed; }
+  .speaking-indicator.active { display: flex; }
+  .speak-wave { display: flex; gap: 2px; align-items: center; }
+  .speak-wave span { width: 3px; background: #7c3aed; border-radius: 2px; animation: wave 0.8s infinite; }
+  .speak-wave span:nth-child(1) { height: 6px; }
+  .speak-wave span:nth-child(2) { height: 12px; animation-delay: 0.15s; }
+  .speak-wave span:nth-child(3) { height: 8px; animation-delay: 0.3s; }
+  .speak-wave span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
+  .speak-wave span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
+  @keyframes wave { 0%,100%{transform:scaleY(0.5)}50%{transform:scaleY(1)} }
+  .input-area { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; padding: 10px 14px 24px; background: #fff; border-top: 1px solid #f0f0f0; display: flex; gap: 8px; align-items: flex-end; }
+  .input-area textarea { flex: 1; border: 1.5px solid #e5e5e5; border-radius: 22px; padding: 11px 16px; font-size: 15px; font-family: inherit; resize: none; min-height: 44px; max-height: 110px; background: #fafafa; color: #1a1a1a; outline: none; line-height: 1.4; }
+  .input-area textarea:focus { border-color: #7c3aed; background: #fff; }
+  .btn-mic { width: 44px; height: 44px; border-radius: 50%; background: #7c3aed; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .btn-mic.recording { background: #dc2626; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.08)} }
+  .btn-send { width: 44px; height: 44px; border-radius: 50%; background: #7c3aed; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="config-screen" class="screen active">
+    <div class="config-wrap">
+      <div class="config-logo">
+        <div class="big-avatar">🕯️</div>
+        <h1>Hola, soy Candela</h1>
+        <p>Tu asistente personal de agenda.<br>Introduce tus credenciales para empezar.</p>
+      </div>
+      <div class="saved-notice" id="saved-notice">Credenciales guardadas</div>
+      <div class="field">
+        <label>Anthropic API Key</label>
+        <input type="password" id="anthropic-key" placeholder="sk-ant-api03-..." autocomplete="off" />
+        <div class="hint">console.anthropic.com → API Keys</div>
+      </div>
+      <div class="field">
+        <label>Google Client ID</label>
+        <input type="password" id="google-client-id" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" />
+        <div class="hint">Google Cloud Console → Clientes → Asistente personal</div>
+      </div>
+      <div class="field">
+        <label>Tu nombre</label>
+        <input type="text" id="user-name" placeholder="¿Cómo te llamo?" autocomplete="off" />
+      </div>
+      <button class="btn-primary" id="btn-start" onclick="startApp()">Conectar con Google Calendar</button>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+  </div>
+
+  <div id="chat-screen" class="screen">
+    <div class="header">
+      <div class="header-top">
+        <div class="header-left">
+          <div class="avatar">🕯️</div>
+          <div>
+            <h1>Candela</h1>
+            <div class="status"><div class="status-dot"></div>Conectada</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-sound" id="btn-sound" onclick="toggleSound()">🔊</button>
+          <button class="btn-icon" onclick="logout()">Salir</button>
+        </div>
+      </div>
+    </div>
+    <div class="quick-actions">
+      <div class="chip" onclick="sendQuick('¿Qué tengo hoy?')">¿Qué tengo hoy?</div>
+      <div class="chip" onclick="sendQuick('¿Huecos libres mañana?')">Huecos mañana</div>
+      <div class="chip" onclick="sendQuick('¿Qué tengo esta semana?')">Esta semana</div>
+      <div class="chip" onclick="sendQuick('Crear un evento nuevo')">Nuevo evento</div>
+      <div class="chip" onclick="sendQuick('Añadir una tarea pendiente')">Nueva tarea</div>
+      <div class="chip" onclick="sendQuick('¿Qué calendarios tengo?')">Mis calendarios</div>
+    </div>
+    <div class="chat-area" id="chat-area">
+      <div class="speaking-indicator" id="speaking-indicator">
+        <div class="speak-wave"><span></span><span></span><span></span><span></span><span></span></div>
+        Candela está hablando...
+      </div>
+    </div>
+    <div class="input-area">
+      <textarea id="msg-input" placeholder="Escribe o usa el micro..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="btn-mic" id="btn-mic" onclick="toggleMic()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+      </button>
+      <button class="btn-send" onclick="sendMessage()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let ANTHROPIC_KEY='', GOOGLE_CLIENT_ID='', USER_NAME='';
+let accessToken=null, tokenClient=null;
+let conversationHistory=[];
+let recognition=null, isRecording=false;
+let soundEnabled=true;
+let userCalendars=[], taskLists=[];
+
+function saveCredentials(){try{localStorage.setItem('c_ak',ANTHROPIC_KEY);localStorage.setItem('c_gid',GOOGLE_CLIENT_ID);localStorage.setItem('c_name',USER_NAME);}catch(e){}}
+function loadCredentials(){try{const ak=localStorage.getItem('c_ak'),gid=localStorage.getItem('c_gid'),name=localStorage.getItem('c_name');if(ak)document.getElementById('anthropic-key').value=ak;if(gid)document.getElementById('google-client-id').value=gid;if(name)document.getElementById('user-name').value=name;if(ak&&gid)document.getElementById('saved-notice').style.display='block';}catch(e){}}
+
+function toggleSound(){soundEnabled=!soundEnabled;const btn=document.getElementById('btn-sound');btn.textContent=soundEnabled?'🔊':'🔇';btn.classList.toggle('muted',!soundEnabled);if(!soundEnabled)speechSynthesis.cancel();}
+function speak(text){if(!soundEnabled)return;speechSynthesis.cancel();const clean=text.replace(/[^\w\s.,;:¿?¡!áéíóúüñÁÉÍÓÚÜÑ\-]/g,' ');const u=new SpeechSynthesisUtterance(clean);u.lang='es-ES';u.rate=1.05;u.pitch=1.1;const voices=speechSynthesis.getVoices();const v=voices.find(v=>v.lang.startsWith('es')&&/female|woman|marta|monica|lucia/i.test(v.name))||voices.find(v=>v.lang.startsWith('es'));if(v)u.voice=v;u.onstart=()=>document.getElementById('speaking-indicator').classList.add('active');u.onend=()=>document.getElementById('speaking-indicator').classList.remove('active');u.onerror=()=>document.getElementById('speaking-indicator').classList.remove('active');speechSynthesis.speak(u);}
+
+function showError(msg){document.getElementById('error-msg').textContent=msg;const btn=document.getElementById('btn-start');btn.disabled=false;btn.textContent='Conectar con Google Calendar';}
+
+function startApp(){
+  ANTHROPIC_KEY=document.getElementById('anthropic-key').value.trim();
+  GOOGLE_CLIENT_ID=document.getElementById('google-client-id').value.trim();
+  USER_NAME=document.getElementById('user-name').value.trim()||'jefe';
+  if(!ANTHROPIC_KEY||!GOOGLE_CLIENT_ID){showError('Rellena la API Key y el Client ID.');return;}
+  saveCredentials();
+  const btn=document.getElementById('btn-start');btn.disabled=true;btn.textContent='Conectando...';showError('');
+  const s1=document.createElement('script');s1.src='https://apis.google.com/js/api.js';
+  s1.onload=()=>gapi.load('client',async()=>{
+    try{
+      await gapi.client.init({discoveryDocs:[
+        'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
+        'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest'
+      ]});
+      loadGIS();
+    }catch(e){showError('Error iniciando Google API. Revisa el Client ID.');}
+  });
+  s1.onerror=()=>showError('No se pudo cargar la API de Google.');
+  document.head.appendChild(s1);
+}
+
+function loadGIS(){
+  const s2=document.createElement('script');s2.src='https://accounts.google.com/gsi/client';
+  s2.onload=()=>{
+    try{
+      tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GOOGLE_CLIENT_ID,
+        scope:'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks',
+        callback:async(resp)=>{
+          if(resp.error){showError('Error de autorización: '+resp.error);return;}
+          accessToken=resp.access_token;
+          gapi.client.setToken({access_token:accessToken});
+          await loadCalendarsAndTasks();
+          enterChat();
+        }
+      });
+      tokenClient.requestAccessToken({prompt:'consent'});
+    }catch(e){showError('Client ID incorrecto.');}
+  };
+  document.head.appendChild(s2);
+}
+
+async function loadCalendarsAndTasks(){
+  try{const r=await gapi.client.calendar.calendarList.list();userCalendars=(r.result.items||[]).map(c=>({id:c.id,name:c.summary}));}
+  catch(e){userCalendars=[{id:'primary',name:'Mi calendario'}];}
+  try{const r=await gapi.client.tasks.tasklists.list();taskLists=(r.result.items||[]).map(t=>({id:t.id,name:t.title}));}
+  catch(e){taskLists=[];}
+}
+
+async function getCalendarEvents(){
+  try{
+    const now=new Date(),weekLater=new Date(now.getTime()+7*24*60*60*1000),all=[];
+    for(const cal of userCalendars){
+      try{
+        const r=await gapi.client.calendar.events.list({calendarId:cal.id,timeMin:now.toISOString(),timeMax:weekLater.toISOString(),maxResults:15,singleEvents:true,orderBy:'startTime'});
+        (r.result.items||[]).forEach(e=>all.push({...e,calendarName:cal.name}));
+      }catch(e){}
+    }
+    return all.sort((a,b)=>new Date(a.start.dateTime||a.start.date)-new Date(b.start.dateTime||b.start.date));
+  }catch(e){return[];}
+}
+
+async function createCalendarEvent(summary,start,end,description,calendarId){
+  try{
+    const r=await gapi.client.calendar.events.insert({calendarId:calendarId||'primary',resource:{summary,description:description||'',start:{dateTime:start,timeZone:'Europe/Madrid'},end:{dateTime:end,timeZone:'Europe/Madrid'}}});
+    return r.result;
+  }catch(e){return null;}
+}
+
+async function getTasks(){
+  try{
+    const all=[];
+    for(const list of taskLists){
+      const r=await gapi.client.tasks.tasks.list({tasklist:list.id,showCompleted:false,maxResults:15});
+      (r.result.items||[]).forEach(t=>all.push({...t,listName:list.name}));
+    }
+    return all;
+  }catch(e){return[];}
+}
+
+async function createTask(title,notes,due,taskListId){
+  try{
+    const listId=taskListId||(taskLists[0]&&taskLists[0].id)||'@default';
+    const task={title,notes:notes||''};
+    if(due)task.due=new Date(due).toISOString();
+    const r=await gapi.client.tasks.tasks.insert({tasklist:listId,resource:task});
+    return r.result;
+  }catch(e){return null;}
+}
+
+function formatCalendarsForAI(){return userCalendars.map(c=>`- "${c.name}" (id: ${c.id})`).join('\n');}
+function formatEventsForAI(events){if(!events.length)return'No hay eventos en los próximos 7 días.';return events.map(e=>{const start=e.start.dateTime?new Date(e.start.dateTime).toLocaleString('es-ES',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):e.start.date;const end=e.end.dateTime?new Date(e.end.dateTime).toLocaleString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';return`- [${e.calendarName}] ${e.summary||'Sin título'}: ${start}${end?' – '+end:''}`;}).join('\n');}
+function formatTasksForAI(tasks){if(!tasks.length)return'No hay tareas pendientes.';return tasks.map(t=>{const due=t.due?new Date(t.due).toLocaleDateString('es-ES'):'sin fecha';return`- [${t.listName}] ${t.title} (vence: ${due})`;}).join('\n');}
+
+async function callCandela(userMsg){
+  const events=await getCalendarEvents();
+  const tasks=await getTasks();
+  const today=new Date().toLocaleString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  const systemPrompt=`Eres Candela, asistente personal de agenda. Eres cercana, simpática y hablas en castellano de España tuteando al usuario. El usuario se llama ${USER_NAME}.
+
+Hoy es: ${today} (zona horaria: Europe/Madrid)
+
+CALENDARIOS DISPONIBLES:
+${formatCalendarsForAI()}
+
+EVENTOS PRÓXIMOS (7 días):
+${formatEventsForAI(events)}
+
+TAREAS PENDIENTES:
+${formatTasksForAI(tasks)}
+
+ACCIONES — cuando el usuario quiera crear algo, responde SOLO con el JSON, sin texto adicional:
+
+Crear evento:
+{"action":"create_event","summary":"título","start":"2026-04-10T10:00:00","end":"2026-04-10T11:00:00","description":"","calendar_id":"ID_DEL_CALENDARIO"}
+
+Crear tarea:
+{"action":"create_task","title":"título","notes":"descripción","due":"2026-04-10"}
+
+REGLAS:
+- Elige el calendario correcto según lo que diga el usuario. Si dice "en familia" usa el id del calendario que se llame "Familia" o similar. Si no especifica, usa 'primary'.
+- Para tareas sin fecha, omite el campo "due".
+- Para consultas, responde de forma natural, concisa y útil.
+- Al analizar huecos libres, compara los eventos y di claramente cuándo hay tiempo libre.`;
+
+  conversationHistory.push({role:'user',content:userMsg});
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:systemPrompt,messages:conversationHistory})});
+  if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'Error de API');}
+  const data=await resp.json();
+  const reply=data.content[0].text;
+  conversationHistory.push({role:'assistant',content:reply});
+
+  try{
+    const json=JSON.parse(reply.trim());
+    if(json.action==='create_event'){
+      const calId=json.calendar_id||'primary';
+      const calName=userCalendars.find(c=>c.id===calId)?.name||'tu calendario';
+      const created=await createCalendarEvent(json.summary,json.start,json.end,json.description,calId);
+      if(created){const d=new Date(json.start).toLocaleString('es-ES',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});return`¡Hecho! He añadido "${json.summary}" al calendario "${calName}" para el ${d}.`;}
+      return'Vaya, no he podido crear el evento. Comprueba que la Google Calendar API esté habilitada.';
+    }
+    if(json.action==='create_task'){
+      const listName=taskLists[0]?.name||'Mis tareas';
+      const created=await createTask(json.title,json.notes,json.due);
+      if(created){const dueText=json.due?` para el ${new Date(json.due).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}`:'';return`¡Anotado! He creado la tarea "${json.title}"${dueText} en "${listName}".`;}
+      return'No he podido crear la tarea. Comprueba que la API de Google Tasks esté habilitada en tu proyecto.';
+    }
+  }catch(e){}
+  return reply;
+}
+
+function enterChat(){
+  document.getElementById('config-screen').classList.remove('active');
+  document.getElementById('chat-screen').classList.add('active');
+  const calNames=userCalendars.map(c=>c.name).join(', ');
+  const msg=`¡Hola, ${USER_NAME}! Soy Candela. Estoy conectada a tus calendarios: ${calNames}. Puedo consultar eventos, crear citas en cualquier calendario, añadir tareas y buscar huecos libres. ¡Dime qué necesitas!`;
+  addMsg('candela',msg);
+  setTimeout(()=>speak(msg),300);
+}
+
+function logout(){speechSynthesis.cancel();accessToken=null;conversationHistory=[];userCalendars=[];taskLists=[];document.getElementById('chat-screen').classList.remove('active');document.getElementById('config-screen').classList.add('active');document.getElementById('chat-area').innerHTML='<div class="speaking-indicator" id="speaking-indicator"><div class="speak-wave"><span></span><span></span><span></span><span></span><span></span></div>Candela está hablando...</div>';}
+
+function addMsg(type,content){const area=document.getElementById('chat-area');const div=document.createElement('div');div.className='msg '+type;div.textContent=content;const ind=document.getElementById('speaking-indicator');area.insertBefore(div,ind);area.scrollTop=area.scrollHeight;return div;}
+function addTyping(){const area=document.getElementById('chat-area');const div=document.createElement('div');div.className='typing';div.id='typing-indicator';div.innerHTML='<span></span><span></span><span></span>';const ind=document.getElementById('speaking-indicator');area.insertBefore(div,ind);area.scrollTop=area.scrollHeight;}
+function removeTyping(){const el=document.getElementById('typing-indicator');if(el)el.remove();}
+
+async function sendMessage(text){
+  const input=document.getElementById('msg-input');
+  const msg=text||input.value.trim();
+  if(!msg)return;
+  speechSynthesis.cancel();
+  if(!text){input.value='';autoResize(input);}
+  addMsg('user',msg);addTyping();
+  try{const reply=await callCandela(msg);removeTyping();addMsg('candela',reply);speak(reply);}
+  catch(e){removeTyping();const err='Ups, ha habido un problemilla. Revisa tu API Key de Anthropic.';addMsg('candela',err);speak(err);}
+}
+
+function sendQuick(text){sendMessage(text);}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';}
+
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addMsg('system','Micrófono no disponible. Actívalo en Ajustes > Chrome > Micrófono.');return;}
+  if(isRecording){recognition.stop();return;}
+  speechSynthesis.cancel();
+  recognition=new SR();recognition.lang='es-ES';recognition.continuous=false;recognition.interimResults=true;
+  const micBtn=document.getElementById('btn-mic'),input=document.getElementById('msg-input');
+  recognition.onstart=()=>{isRecording=true;micBtn.classList.add('recording');input.placeholder='Escuchando...';};
+  recognition.onresult=(e)=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;input.value=t;autoResize(input);};
+  recognition.onend=()=>{isRecording=false;micBtn.classList.remove('recording');input.placeholder='Escribe o usa el micro...';if(input.value.trim())sendMessage();};
+  recognition.onerror=(e)=>{isRecording=false;micBtn.classList.remove('recording');input.placeholder='Escribe o usa el micro...';if(e.error==='not-allowed')addMsg('system','Permiso de micrófono denegado. Actívalo en Ajustes > Chrome > Micrófono.');};
+  try{recognition.start();}catch(e){addMsg('system','No se pudo iniciar el micrófono.');}
+}
+
+window.addEventListener('load',()=>{loadCredentials();speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();});
+</script>
+</body>
+</html>
